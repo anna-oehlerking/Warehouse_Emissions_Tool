@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>WPRA Calculator</title>
+<title>Warehouse Emissions Estimator</title>
 <style>
 :root{--ink:#0D0221;--navy:#0F084B;--mist:#C1CEFE;--blue:#7189FF;--white:#fff;--card:rgba(193,206,254,.07);--line:rgba(193,206,254,.18)}
 *{box-sizing:border-box}
@@ -55,19 +55,42 @@ option{background:var(--navy)}
 .hl tbody tr:hover{background:rgba(255,255,255,.25)}
 .hl .btn{background:var(--navy);color:var(--white)}
 .hl .btn:hover{background:var(--ink)}
+.lede{margin:0 0 16px;color:var(--mist);font-size:15px}
+.card p{margin:0 0 10px}
+.center{text-align:center}
+.acr{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0 22px}
+.acr div{display:flex;gap:12px;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--line)}
+.acr b{min-width:62px}
+.acr span{color:var(--mist)}
+.scen,.refs{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.scen div,.refs div{background:rgba(113,137,255,.1);border:1px solid var(--line);border-radius:16px;padding:14px}
+.scen b{display:block;margin-bottom:4px}
+.scen span{color:var(--mist)}
+.refs h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mist)}
+.refs ul{margin:0;padding-left:18px}
+.refs li{margin:4px 0}
+.refs a{color:var(--white);text-decoration-color:var(--blue)}
+.pills{display:flex;flex-wrap:wrap;gap:10px}
+.pill{display:inline-block;padding:9px 18px;border-radius:999px;border:1px solid var(--blue);background:rgba(113,137,255,.18);color:var(--white);font-weight:600;text-decoration:none}
+a.pill:hover{background:var(--blue);color:var(--ink)}
+.logo{display:flex;justify-content:center;margin:18px 0}
+.logo img{max-width:240px;max-height:150px;background:#fff;border-radius:18px;padding:14px}
+.ack{margin:4px 6px 0;text-align:right;font-size:11px;color:var(--mist);opacity:.7}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <div class="wrap">
-<header><h1>WPRA <span>Calculator</span></h1><p>Warehouse emissions by scenario, in tons per year</p></header>
+<header><h1>Warehouse <span>Emissions Estimator</span></h1><p>Customizable emissions inventory for a subset of 1,000 Illinois warehouses.</p></header>
 <nav id="tabs">
   <button data-t="t1" class="on">Baseline</button>
   <button data-t="t2">WPRA Scenario</button>
   <button data-t="t3">Custom Scenario</button>
+  <button data-t="t4">User Guide &amp; Further Information</button>
 </nav>
 
 <section id="t1">
+  <p class="lede">The baseline is the current estimate of emissions from the 1,000-facility subset of Illinois warehouses.</p>
   <div class="grid">
     <div>
       <div class="card"><h2>Total emissions</h2><div id="a1"></div></div>
@@ -89,12 +112,14 @@ option{background:var(--navy)}
 </section>
 
 <section id="t2" hidden>
+  <p class="lede">This scenario shows what emissions could look like under the Warehouse Pollution Reduction Act (WPRA).</p>
   <div class="card"><h2>WPRA adoption assumptions</h2><div class="chips" id="chips"></div></div>
   <div class="card wide"><h2>Total emissions</h2><div id="b1"></div></div>
   <div id="bGrid"></div>
 </section>
 
 <section id="t3" hidden>
+  <p class="lede">This scenario shows what warehouse emissions would look like under the adoption levels you choose.</p>
   <div class="card hl">
     <h2>Emissions adjustments (%)</h2>
     <div class="inputs" id="inputs"></div>
@@ -103,6 +128,21 @@ option{background:var(--navy)}
   </div>
   <div class="card wide"><h2>Total emissions</h2><div id="c1"></div></div>
   <div id="cGrid"></div>
+</section>
+
+<section id="t4" hidden>
+  <div class="card">
+    <h2>About this tool</h2>
+    <p>The Warehouse Emissions Estimator is designed to allow users to see the baseline emissions for 1,000 warehouses in Illinois, as well as an estimated WPRA scenario and customizable outputs. This represents ~1/7 of the total statewide warehouse population of 50,000+ sq ft.</p>
+    <div class="logo"><img src="logo.png" alt="Clear the Air Coalition logo" onerror="this.parentNode.hidden=true"></div>
+    <p class="center">This tool was created to support the Clear the Air Coalition in their efforts to implement the proposed Warehouse Pollution Reduction Act.</p>
+  </div>
+  <div class="card"><h2>Scenarios</h2><div class="scen" id="scen"></div></div>
+  <div class="card"><h2>Acronyms</h2><div class="acr" id="acr"></div></div>
+  <div class="card"><h2>Links</h2><div class="pills" id="links"></div></div>
+  <div class="card hl"><h2>Take action</h2><p style="margin:0 0 12px;font-weight:600">Want to see this policy go through? Contact your local legislator today.</p><a class="btn" id="legis" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin:0">Find your legislator</a></div>
+  <div class="card"><h2>References</h2><div class="refs" id="refs"></div></div>
+  <p class="ack">Claude was used to convert an existing Excel tool into a shareable HTML format.</p>
 </section>
 </div>
 
@@ -195,10 +235,34 @@ INP.forEach(x=>$('i_'+x[0]).addEventListener('input',custom));
 $('reset').addEventListener('click',()=>{INP.forEach(x=>$('i_'+x[0]).value='');custom()});
 custom();
 
+// User guide content. Add a URL as the second item to turn an entry into a link.
+const LEGIS_URL='https://ilenviro.org/who-is-my-illinois-representative-legislator-lookup-tool/';
+const LINKS=[['Clear the Air Coalition Page',''],['WPRA Bill',''],['WPRA Fact Sheet',''],['UCS Indirect Source Rule Report',''],['EDF Warehouse Boom Report','']];
+const REFS=[
+ ['Warehouse Information',[['CoStar','']]],
+ ['MHDV Emissions Factors',[['EPA MOVES5.0.1','']]],
+ ['MHDV Trips',[['LOCUS','']]],
+ ['TRU Information',[['Chicago Metropolitan Agency for Planning, “The Freight Landscape”',''],['EPA TRU Calculator','']]],
+ ['Yard Truck Information',[['SCAQMD ISIR Reports 2023',''],['EPA NONROAD Tier 4 Emissions Factors for Diesel Compression Engines','']]],
+ ['On-Site Emissions',[['Energy Information Administration: Commercial Buildings Report',''],['EPA: Natural Gas Combustion (Section 1.4)','https://www.epa.gov/sites/default/files/2020-09/documents/1.4_natural_gas_combustion.pdf']]],
+ ['Representative Counties',[['EPA MOVES CDBs','']]]];
+const ACR=[['WH','Warehouse'],['MDT','Medium-Duty Truck (Classes 4–7)'],['HDT','Heavy-Duty Truck (Class 8)'],['YT','Yard Truck / Terminal Tractor / Hostler'],
+ ['TRU','Transport Refrigeration Units'],['On-Site','Emissions from Natural Gas Boilers and Generators'],['E-','Electric, as in E-MDT, E-HDT, E-YT and E-TRU adoption'],
+ [LBL.NOx,'Nitrogen Oxides'],[LBL.PM,'Particulate Matter (2.5 microns or smaller)'],['VOCs','Volatile Organic Compounds'],[LBL.SO2,'Sulfur Dioxide'],['WPRA','Warehouse Pollution Reduction Act']];
+const SCEN=[['Baseline Emissions Inventory','The current estimate of warehouse emissions, from the 1,000-facility subset.'],
+ ['WPRA Scenario','What emissions could look like under the Warehouse Pollution Reduction Act (WPRA).'],
+ ['Customizable Scenario','What warehouse emissions would look like under different adoption scenarios.']];
+const a=(t,u)=>u?`<a href="${u}" target="_blank" rel="noopener">${t}</a>`:t;
+$('scen').innerHTML=SCEN.map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+$('acr').innerHTML=ACR.map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join('');
+$('links').innerHTML=LINKS.map(x=>x[1]?`<a class="pill" href="${x[1]}" target="_blank" rel="noopener">${x[0]}</a>`:`<span class="pill">${x[0]}</span>`).join('');
+$('legis').href=LEGIS_URL;
+$('refs').innerHTML=REFS.map(g=>`<div><h3>${g[0]}</h3><ul>${g[1].map(x=>`<li>${a(x[0],x[1])}</li>`).join('')}</ul></div>`).join('');
+
 // Tabs
 document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
-  ['t1','t2','t3'].forEach(t=>$(t).hidden=t!==b.dataset.t);
+  ['t1','t2','t3','t4'].forEach(t=>$(t).hidden=t!==b.dataset.t);
 }));
 </script>
 </body>
