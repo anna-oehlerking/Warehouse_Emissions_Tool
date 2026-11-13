@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WPRA Calculator</title>
+<style>
+:root{--ink:#0D0221;--navy:#0F084B;--mist:#C1CEFE;--blue:#7189FF;--white:#fff;--card:rgba(193,206,254,.07);--line:rgba(193,206,254,.18)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--white);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:linear-gradient(160deg,var(--ink) 0%,var(--navy) 100%) fixed}
+.wrap{max-width:1240px;margin:0 auto;padding:0 18px 40px}
+header{padding:28px 0 4px}
+h1{margin:0;font-size:28px;letter-spacing:-.5px}
+h1 span{color:var(--blue)}
+header p{margin:4px 0 0;color:var(--mist)}
+nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+nav button{border:1px solid var(--line);background:transparent;color:var(--mist);padding:9px 20px;border-radius:999px;font:inherit;font-weight:600;cursor:pointer;transition:.15s}
+nav button:hover{border-color:var(--blue);color:var(--white)}
+nav button.on{background:var(--blue);border-color:var(--blue);color:var(--ink)}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mist);margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;align-items:start}
+.wide{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{color:var(--mist);font-weight:600;font-size:12px;background:var(--navy);position:sticky;top:0}
+tbody tr:hover{background:rgba(113,137,255,.12)}
+tbody tr:last-child td{border-bottom:0}
+.scroll{max-height:560px;overflow:auto;border-radius:12px}
+label{display:block;margin:10px 0 4px;color:var(--mist);font-size:12px}
+select,input{width:100%;padding:9px 14px;font:inherit;color:var(--white);background:rgba(13,2,33,.6);border:1px solid var(--line);border-radius:12px;outline:0}
+select:focus,input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(113,137,255,.3)}
+option{background:var(--navy)}
+.btn{margin-top:14px;border:0;border-radius:999px;background:var(--blue);color:var(--ink);padding:9px 20px;font:inherit;font-weight:700;cursor:pointer}
+.btn:hover{background:var(--mist)}
+.inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:rgba(113,137,255,.18);border:1px solid var(--blue);border-radius:999px;padding:5px 14px;color:var(--mist)}
+.chip b{color:var(--white)}
+.note{color:var(--mist);opacity:.8;font-size:12px;margin-top:8px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><h1>WPRA <span>Calculator</span></h1><p>Warehouse emissions by scenario, in tons per year</p></header>
+<nav id="tabs">
+  <button data-t="t1" class="on">Baseline</button>
+  <button data-t="t2">WPRA Scenario</button>
+  <button data-t="t3">Custom Scenario</button>
+</nav>
+
+<section id="t1">
+  <div class="grid">
+    <div>
+      <div class="card"><h2>Total emissions</h2><div id="a1"></div></div>
+      <div class="card">
+        <h2>Inquiries</h2>
+        <label for="selC">County</label><select id="selC"></select>
+        <label for="selT">Facility type</label><select id="selT"></select>
+        <label for="selS">Source</label><select id="selS"></select>
+        <table style="margin-top:14px"><thead><tr><th>Pollutant</th><th>Tons/yr</th></tr></thead><tbody id="inqOut"></tbody></table>
+        <div class="note">Leave a dropdown blank to include all. A blank source means Total.</div>
+      </div>
+    </div>
+    <div class="card"><h2>County totals (tons/yr)</h2><div class="scroll" id="aCounty"></div></div>
+    <div>
+      <div class="card"><h2>Facility types (tons/yr)</h2><div id="aFtype"></div></div>
+      <div class="card"><h2>Source types (tons/yr)</h2><div id="aSource"></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="t2" hidden>
+  <div class="card"><h2>WPRA adoption assumptions</h2><div class="chips" id="chips"></div></div>
+  <div class="card wide"><h2>Total emissions</h2><div id="b1"></div></div>
+  <div id="bGrid"></div>
+</section>
+
+<section id="t3" hidden>
+  <div class="card">
+    <h2>Emissions adjustments (%)</h2>
+    <div class="inputs" id="inputs"></div>
+    <button class="btn" id="reset" type="button">Reset</button>
+    <div class="note">Enter whole-number percentages (0 to 100). Blank counts as 0.</div>
+  </div>
+  <div class="card wide"><h2>Total emissions</h2><div id="c1"></div></div>
+  <div id="cGrid"></div>
+</section>
+</div>
+
+<script src="data.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const P=['NOx','PM','VOC','SO2'];
+const LBL={NOx:'NO<sub>x</sub>',PM:'PM<sub>2.5</sub>',VOC:'VOCs',SO2:'SO<sub>2</sub>'};
+// Baseline data column per source and pollutant [NOx, PM, VOC, SO2]; null = not applicable (0)
+const SRC={MDT:[5,6,7,8],HDT:[9,10,11,12],'MDT Idling':[15,16,17,18],'HDT Idling':[19,20,21,22],
+  YT:[23,24,25,null],'On-Site':[26,27,28,29],TRU:[30,31,null,32]};
+const KEYS=Object.keys(SRC),ALL=[...KEYS,'Total'];
+const R=WPRA.rows,N=R.length; // r[2]=facility type, r[3]=county, r[13]/r[14]=electric MDT/HDT trip PM
+const ci=(a,b)=>a.toLowerCase()<b.toLowerCase()?-1:1;
+const counties=[...new Set(R.map(r=>r[3]))].sort(ci);
+const FT=['Warehouse','Manufacturing','Truck Terminal','Refrigeration/Cold Storage','Distribution','Food Processing','Showroom','Service','Telecom Hotel/Data Hosting','NA'];
+const ftypes=[...FT.filter(t=>R.some(r=>r[2]===t)),...[...new Set(R.map(r=>r[2]))].filter(t=>!FT.includes(t))];
+
+// a = adoption fractions {mdt,hdt,yt,tru,boiler}. Returns per-facility arrays: 7 sources x 4 pollutants, then Total.
+function scenario(a){
+  const fr={MDT:a.mdt,HDT:a.hdt,'MDT Idling':a.mdt,'HDT Idling':a.hdt,YT:a.yt,'On-Site':a.boiler,TRU:a.tru};
+  return R.map(r=>{
+    const o=new Float64Array(32);
+    KEYS.forEach((s,si)=>{
+      const x=fr[s];
+      for(let p=0;p<4;p++){
+        const c=SRC[s][p];if(c==null)continue;
+        let v=r[c]*(1-x);
+        if(p===1&&s==='MDT')v+=x*r[13];
+        if(p===1&&s==='HDT')v+=1.5*x*r[14];
+        o[si*4+p]=v;o[28+p]+=v;
+      }
+    });
+    return o;
+  });
+}
+const agg=(sc,f,s='Total')=>{const k=ALL.indexOf(s)*4,o=[0,0,0,0];sc.forEach((v,i)=>{if(f(R[i]))for(let p=0;p<4;p++)o[p]+=v[k+p]});return o};
+const fmt=(v,d=4)=>v===0?'-':v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(b,c)=>b?((b-c)/b*100).toFixed(1)+'%':'-';
+const head=f=>`<thead><tr><th>${f}</th>${P.map(p=>`<th>${LBL[p]}</th>`).join('')}</tr></thead>`;
+const body=(items,fn)=>'<tbody>'+items.map(it=>{const[n,v]=fn(it);return `<tr><td>${n}</td>${v.map(x=>`<td>${fmt(x)}</td>`).join('')}</tr>`}).join('')+'</tbody>';
+const tbl=(first,items,fn)=>'<table>'+head(first)+body(items,fn)+'</table>';
+function sumTable(id,cols){
+  $(id).innerHTML='<table><thead><tr><th>Pollutant</th>'+cols.map(c=>`<th>${c[0]}</th>`).join('')+'</tr></thead><tbody>'+
+    P.map((p,i)=>`<tr><td>${LBL[p]}</td>${cols.map(c=>`<td>${c[1](i)}</td>`).join('')}</tr>`).join('')+'</tbody></table>';
+}
+const gridHtml=p=>`<div class="grid"><div class="card"><h2>County totals (tons/yr)</h2><div class="scroll" id="${p}County"></div></div><div><div class="card"><h2>Facility types (tons/yr)</h2><div id="${p}Ftype"></div></div><div class="card"><h2>Source types (tons/yr)</h2><div id="${p}Source"></div></div></div></div>`;
+function breakdown(p,sc){
+  $(p+'County').innerHTML=tbl('County',counties,c=>[c,agg(sc,r=>r[3]===c)]);
+  $(p+'Ftype').innerHTML=tbl('Facility type',ftypes,x=>[x,agg(sc,r=>r[2]===x)]);
+  $(p+'Source').innerHTML=tbl('Source',ALL,s=>[s,agg(sc,()=>true,s)]);
+}
+
+// Scenarios
+const ZERO={mdt:0,hdt:0,yt:0,tru:0,boiler:0};
+const WP={mdt:.03,hdt:.02,yt:.13,tru:0,boiler:0};
+const BASE=scenario(ZERO),WPR=scenario(WP);
+const TB=agg(BASE,()=>true),TW=agg(WPR,()=>true);
+
+// Tab 1: Baseline
+sumTable('a1',[['Total (tons/yr)',i=>fmt(TB[i],2)],['Per warehouse',i=>fmt(TB[i]/N,3)]]);
+breakdown('a',BASE);
+const fill=(id,items)=>{$(id).innerHTML='<option value=""></option>'+items.map(x=>`<option>${x}</option>`).join('')};
+fill('selC',counties);fill('selT',ftypes);fill('selS',ALL);
+function inquire(){
+  const c=selC.value,t=selT.value,s=selS.value;
+  const v=agg(BASE,r=>(!c||r[3]===c)&&(!t||r[2]===t),s||'Total');
+  inqOut.innerHTML=P.map((p,i)=>`<tr><td>${LBL[p]}</td><td>${!c&&!t&&!s?'':fmt(v[i])}</td></tr>`).join('');
+}
+['selC','selT','selS'].forEach(id=>$(id).addEventListener('change',inquire));
+inquire();
+
+// Tab 2: WPRA
+$('chips').innerHTML=[['E-MDT',3],['E-HDT',2],['E-YT',13],['E-TRU',0],['Electric boiler/generator',0]].map(x=>`<span class="chip">${x[0]} adoption <b>${x[1]}%</b></span>`).join('');
+sumTable('b1',[['Baseline',i=>fmt(TB[i],2)],['WPRA',i=>fmt(TW[i],2)],['% reduction',i=>pct(TB[i],TW[i])],['Baseline (per WH)',i=>fmt(TB[i]/N,2)],['WPRA (per WH)',i=>fmt(TW[i]/N,2)]]);
+$('bGrid').innerHTML=gridHtml('b');breakdown('b',WPR);
+
+// Tab 3: Custom
+const INP=[['mdt','E-MDT adoption (%)'],['hdt','E-HDT adoption (%)'],['yt','E-YT adoption (%)'],['tru','E-TRU adoption (%)'],['boiler','Electric boiler/generator adoption (%)']];
+$('inputs').innerHTML=INP.map(x=>`<div><label for="i_${x[0]}">${x[1]}</label><input id="i_${x[0]}" type="number" min="0" max="100" step="any" placeholder="0"></div>`).join('');
+$('cGrid').innerHTML=gridHtml('c');
+function custom(){
+  const a={};INP.forEach(x=>{a[x[0]]=Math.min(100,Math.max(0,parseFloat($('i_'+x[0]).value)||0))/100});
+  const sc=scenario(a),TC=agg(sc,()=>true);
+  sumTable('c1',[['Baseline',i=>fmt(TB[i],2)],['WPRA',i=>fmt(TW[i],2)],['Custom',i=>fmt(TC[i],2)],['% reduction',i=>pct(TB[i],TC[i])],
+    ['Baseline (per WH)',i=>fmt(TB[i]/N,2)],['WPRA (per WH)',i=>fmt(TW[i]/N,2)],['Custom (per WH)',i=>fmt(TC[i]/N,2)]]);
+  breakdown('c',sc);
+}
+INP.forEach(x=>$('i_'+x[0]).addEventListener('input',custom));
+$('reset').addEventListener('click',()=>{INP.forEach(x=>$('i_'+x[0]).value='');custom()});
+custom();
+
+// Tabs
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['t1','t2','t3'].forEach(t=>$(t).hidden=t!==b.dataset.t);
+}));
+</script>
+</body>
+</html>
