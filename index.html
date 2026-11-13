@@ -76,6 +76,23 @@ a.pill:hover{background:var(--blue);color:var(--ink)}
 .logo{display:flex;justify-content:center;margin:18px 0}
 .logo img{max-width:240px;max-height:150px;background:#fff;border-radius:18px;padding:14px}
 .ack{margin:4px 6px 0;text-align:right;font-size:11px;color:var(--mist);opacity:.7}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;align-items:start}
+.layout>*{min-width:0}
+.mapcard{position:sticky;top:12px;overflow:visible}
+@media(max-width:1150px){.layout{grid-template-columns:1fr}.mapcard{position:static}}
+.mbtns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.mbtns button{border:1px solid var(--line);background:transparent;color:var(--mist);padding:4px 12px;border-radius:999px;font:inherit;font-size:12px;cursor:pointer}
+.mbtns button:hover{border-color:var(--blue);color:var(--white)}
+.mbtns button.on{background:var(--blue);border-color:var(--blue);color:var(--ink)}
+.mapwrap{position:relative}
+.map svg{width:100%;height:auto;display:block}
+.map path{stroke:rgba(13,2,33,.75);stroke-width:.6;cursor:pointer;transition:fill .15s}
+.map path.hot{fill:none;stroke:#fff;stroke-width:1.8;pointer-events:none}
+.tip{position:absolute;pointer-events:none;z-index:5;min-width:170px;background:var(--ink);border:1px solid var(--blue);border-radius:12px;padding:8px 12px;font-size:12px;box-shadow:0 6px 20px rgba(0,0,0,.45)}
+.tip b{color:var(--white)}
+.tip div{display:flex;justify-content:space-between;gap:14px;color:var(--mist)}
+.legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--mist);margin-top:8px}
+.legend i{flex:1;height:8px;border-radius:99px;background:linear-gradient(90deg,#3a3fa8,#7189FF,#C1CEFE)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -91,8 +108,8 @@ a.pill:hover{background:var(--blue);color:var(--ink)}
 
 <section id="t1">
   <p class="lede">The baseline is the current estimate of emissions from the 1,000-facility subset of Illinois warehouses.</p>
-  <div class="grid">
-    <div>
+  <div class="layout"><div>
+    <div class="grid2">
       <div class="card"><h2>Total emissions</h2><div id="a1"></div></div>
       <div class="card hl">
         <h2>Inquiries</h2>
@@ -103,23 +120,24 @@ a.pill:hover{background:var(--blue);color:var(--ink)}
         <div class="note">Leave a dropdown blank to include all. A blank source means Total.</div>
       </div>
     </div>
-    <div class="card"><h2>County totals (tons/yr)</h2><div class="scroll" id="aCounty"></div></div>
-    <div>
-      <div class="card"><h2>Facility types (tons/yr)</h2><div id="aFtype"></div></div>
-      <div class="card"><h2>Source types (tons/yr)</h2><div id="aSource"></div></div>
-    </div>
+    <div id="aGrid"></div>
   </div>
+  <div class="card mapcard map" id="mapA"></div></div>
 </section>
 
 <section id="t2" hidden>
   <p class="lede">This scenario shows what emissions could look like under the Warehouse Pollution Reduction Act (WPRA).</p>
+  <div class="layout"><div>
   <div class="card"><h2>WPRA adoption assumptions</h2><div class="chips" id="chips"></div></div>
   <div class="card wide"><h2>Total emissions</h2><div id="b1"></div></div>
   <div id="bGrid"></div>
+  </div>
+  <div class="card mapcard map" id="mapB"></div></div>
 </section>
 
 <section id="t3" hidden>
   <p class="lede">This scenario shows what warehouse emissions would look like under the adoption levels you choose.</p>
+  <div class="layout"><div>
   <div class="card hl">
     <h2>Emissions adjustments (%)</h2>
     <div class="inputs" id="inputs"></div>
@@ -128,6 +146,8 @@ a.pill:hover{background:var(--blue);color:var(--ink)}
   </div>
   <div class="card wide"><h2>Total emissions</h2><div id="c1"></div></div>
   <div id="cGrid"></div>
+  </div>
+  <div class="card mapcard map" id="mapC"></div></div>
 </section>
 
 <section id="t4" hidden>
@@ -147,6 +167,7 @@ a.pill:hover{background:var(--blue);color:var(--ink)}
 </div>
 
 <script src="data.js"></script>
+<script src="il_map.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const P=['NOx','PM','VOC','SO2'];
@@ -202,9 +223,51 @@ const WP={mdt:.03,hdt:.02,yt:.13,tru:0,boiler:0};
 const BASE=scenario(ZERO),WPR=scenario(WP);
 const TB=agg(BASE,()=>true),TW=agg(WPR,()=>true);
 
+// Illinois map (one per scenario page)
+const MAPS={};
+const MET=[[0,LBL.NOx],[1,LBL.PM],[2,LBL.VOC],[3,LBL.SO2],[-1,'Warehouses']];
+const lerp=(a,b,t)=>a.map((x,i)=>Math.round(x+(b[i]-x)*t));
+const ramp=t=>{const A=[58,63,168],B=[113,137,255],C=[193,206,254];return 'rgb('+(t<.5?lerp(A,B,t*2):lerp(B,C,(t-.5)*2)).join(',')+')'};
+function mapStats(sc){const o={};R.forEach((r,i)=>{const s=o[r[3]]||(o[r[3]]={n:0,v:[0,0,0,0]});s.n++;for(let p=0;p<4;p++)s.v[p]+=sc[i][28+p]});return o}
+function initMap(id){
+  const el=$(id);
+  if(typeof IL_MAP==='undefined'){el.hidden=true;return}
+  const st=MAPS[id]={met:0,stats:{}};
+  el.innerHTML=`<h2>Illinois Map</h2><div class="mbtns">${MET.map((x,i)=>`<button type="button" data-m="${x[0]}"${i?'':' class="on"'}>${x[1]}</button>`).join('')}</div>
+  <div class="mapwrap"><svg viewBox="0 0 ${IL_MAP.w} ${IL_MAP.h}" role="img" aria-label="Map of Illinois counties">${IL_MAP.c.map((c,i)=>`<path data-i="${i}" d="${c[1]}"/>`).join('')}<path class="hot"/></svg><div class="tip" hidden></div></div>
+  <div class="legend"><span>Low</span><i></i><span>High</span></div><div class="note"></div>`;
+  const svg=el.querySelector('svg'),tip=el.querySelector('.tip'),hot=el.querySelector('.hot'),wrap=el.querySelector('.mapwrap');
+  const show=e=>{
+    const p=e.target.closest&&e.target.closest('path[data-i]');
+    if(!p){hot.removeAttribute('d');tip.hidden=true;return}
+    const c=IL_MAP.c[+p.dataset.i],s=st.stats[c[0]];
+    hot.setAttribute('d',p.getAttribute('d'));
+    tip.innerHTML=`<b>${c[0]} County</b>`+(s?`<div><span>Sample warehouses</span><b>${s.n}</b></div>`+P.map((q,k)=>`<div><span>${LBL[q]}</span><b>${fmt(s.v[k],2)}</b></div>`).join('')+'<div style="font-size:11px;opacity:.8">tons per year</div>':'<div>No sample warehouses</div>');
+    tip.hidden=false;
+    const r=wrap.getBoundingClientRect();
+    tip.style.left=Math.max(0,Math.min(e.clientX-r.left+14,r.width-tip.offsetWidth))+'px';
+    tip.style.top=Math.max(0,Math.min(e.clientY-r.top+14,r.height-tip.offsetHeight))+'px';
+  };
+  svg.addEventListener('pointermove',show);svg.addEventListener('pointerdown',show);
+  svg.addEventListener('pointerleave',()=>{hot.removeAttribute('d');tip.hidden=true});
+  el.querySelectorAll('.mbtns button').forEach(b=>b.addEventListener('click',()=>{
+    st.met=+b.dataset.m;el.querySelectorAll('.mbtns button').forEach(x=>x.classList.toggle('on',x===b));paintMap(id)}));
+}
+function paintMap(id){
+  const st=MAPS[id];if(!st)return;
+  const val=n=>{const s=st.stats[n];return s?(st.met<0?s.n:s.v[st.met]):null};
+  const max=Math.max(...IL_MAP.c.map(c=>val(c[0])||0))||1;
+  $(id).querySelectorAll('path[data-i]').forEach(p=>{const v=val(IL_MAP.c[+p.dataset.i][0]);p.style.fill=v==null?'rgba(193,206,254,.07)':ramp(Math.sqrt(v/max))});
+  const m=MET.find(x=>x[0]===st.met)[1];
+  $(id).querySelector('.note').innerHTML=`Shaded by ${m}${st.met<0?'':' (tons/yr)'}. Hover a county for details. Unshaded counties have no sample warehouses.`;
+}
+function setMap(id,sc){if(!MAPS[id])return;MAPS[id].stats=mapStats(sc);paintMap(id)}
+['mapA','mapB','mapC'].forEach(initMap);
+setMap('mapA',BASE);setMap('mapB',WPR);
+
 // Tab 1: Baseline
 sumTable('a1',[['Total (tons/yr)',i=>fmt(TB[i],2)],['Per warehouse',i=>fmt(TB[i]/N,3)]]);
-breakdown('a',BASE);
+$('aGrid').innerHTML=gridHtml('a');breakdown('a',BASE);
 const fill=(id,items)=>{$(id).innerHTML='<option value=""></option>'+items.map(x=>`<option>${x}</option>`).join('')};
 fill('selC',counties);fill('selT',ftypes);fill('selS',ALL);
 function inquire(){
@@ -229,7 +292,7 @@ function custom(){
   const sc=scenario(a),TC=agg(sc,()=>true);
   sumTable('c1',[['Baseline',i=>fmt(TB[i],2)],['WPRA',i=>fmt(TW[i],2)],['Custom',i=>fmt(TC[i],2)],['% reduction',i=>pct(TB[i],TC[i])],
     ['Baseline (per WH)',i=>fmt(TB[i]/N,2)],['WPRA (per WH)',i=>fmt(TW[i]/N,2)],['Custom (per WH)',i=>fmt(TC[i]/N,2)]]);
-  breakdown('c',sc);
+  breakdown('c',sc);setMap('mapC',sc);
 }
 INP.forEach(x=>$('i_'+x[0]).addEventListener('input',custom));
 $('reset').addEventListener('click',()=>{INP.forEach(x=>$('i_'+x[0]).value='');custom()});
