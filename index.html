@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WPRA Calculator</title>
+<style>
+:root{--bg:#fff;--fg:#1d2733;--mut:#5b6877;--line:#d9dfe6;--head:#eef2f6;--acc:#1f5f99}
+@media (prefers-color-scheme:dark){:root{--bg:#14181d;--fg:#e6ebf0;--mut:#9aa7b5;--line:#2c353f;--head:#1d242c;--acc:#6db1ee}}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 12px}
+h2{font-size:15px;margin:0 0 6px}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px;font:inherit;color:var(--mut);cursor:pointer}
+nav button.on{color:var(--acc);border-color:var(--acc);font-weight:600}
+nav button:disabled{opacity:.5;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:20px;align-items:start}
+.card{margin-bottom:20px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{background:var(--head);position:sticky;top:0}
+.scroll{max-height:560px;overflow:auto;border:1px solid var(--line)}
+label{display:block;margin:8px 0 2px;color:var(--mut)}
+select{width:100%;padding:6px;font:inherit;background:var(--bg);color:var(--fg);border:1px solid var(--line)}
+.note{color:var(--mut);font-size:12px;margin-top:6px}
+</style>
+</head>
+<body>
+<main>
+<h1>WPRA Calculator</h1>
+<nav>
+  <button class="on">Baseline Emissions</button>
+  <button disabled>Sheet 2 (coming)</button>
+  <button disabled>Sheet 3 (coming)</button>
+</nav>
+
+<h2 style="font-size:17px">Baseline Emissions (Tons per Year)</h2>
+<div class="grid">
+  <div>
+    <div class="card"><h2>Total Emissions</h2><div id="total"></div></div>
+    <div class="card">
+      <h2>Inquiries</h2>
+      <label for="selC">County</label><select id="selC"></select>
+      <label for="selT">Facility Type</label><select id="selT"></select>
+      <label for="selS">Source</label><select id="selS"></select>
+      <table style="margin-top:10px"><thead><tr><th>Pollutant</th><th>Tons/yr</th></tr></thead><tbody id="inqOut"></tbody></table>
+      <div class="note">Leave a dropdown blank to include all. Blank source = Total.</div>
+    </div>
+  </div>
+  <div class="card"><h2>County Totals (Tons/yr)</h2><div class="scroll" id="county"></div></div>
+  <div>
+    <div class="card"><h2>Facility Types (Tons/yr)</h2><div id="ftype"></div></div>
+    <div class="card"><h2>Source Types (Tons/yr)</h2><div id="source"></div></div>
+  </div>
+</div>
+</main>
+
+<script src="data.js"></script>
+<script>
+const P=['NOx','PM','VOC','SO2'];
+const LBL={NOx:'NO<sub>x</sub>',PM:'PM<sub>2.5</sub>',VOC:'VOCs',SO2:'SO<sub>2</sub>'};
+// Data column index per source and pollutant [NOx, PM, VOC, SO2]; null = not applicable (counts as 0)
+const SRC={MDT:[5,6,7,8],HDT:[9,10,11,12],'MDT Idling':[15,16,17,18],'HDT Idling':[19,20,21,22],
+  YT:[23,24,25,null],'On-Site':[26,27,28,29],TRU:[30,31,null,32],Total:[33,34,35,36]};
+const R=WPRA.rows; // r[2]=facility type, r[3]=county
+const ci=(a,b)=>a.toLowerCase()<b.toLowerCase()?-1:1;
+const counties=[...new Set(R.map(r=>r[3]))].sort(ci);
+const FT_ORDER=['Warehouse','Manufacturing','Truck Terminal','Refrigeration/Cold Storage','Distribution','Food Processing','Showroom','Service','Telecom Hotel/Data Hosting','NA'];
+const ftypes=[...FT_ORDER.filter(t=>R.some(r=>r[2]===t)),...[...new Set(R.map(r=>r[2]))].filter(t=>!FT_ORDER.includes(t))];
+
+const sum=(col,f)=>{if(col==null)return 0;let s=0;for(const r of R)if(f(r))s+=r[col];return s};
+const fmt=(v,d=4)=>v===0?'-':v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const vals=(f,srcKey='Total')=>P.map((p,i)=>sum(SRC[srcKey][i],f));
+const head=(first)=>`<thead><tr><th>${first}</th>${P.map(p=>`<th>${LBL[p]}</th>`).join('')}</tr></thead>`;
+const rowsHtml=(items,fn)=>'<tbody>'+items.map(it=>{const [name,v]=fn(it);return `<tr><td>${name}</td>${v.map(x=>`<td>${fmt(x)}</td>`).join('')}</tr>`}).join('')+'</tbody>';
+
+// Total emissions + per facility
+const T=vals(()=>true);
+document.getElementById('total').innerHTML=`<table><thead><tr><th>Pollutant</th><th>Total (tons/yr)</th><th>Per Warehouse</th></tr></thead><tbody>`+
+  P.map((p,i)=>`<tr><td>${LBL[p]}</td><td>${fmt(T[i],2)}</td><td>${fmt(T[i]/R.length,3)}</td></tr>`).join('')+`</tbody></table>`;
+
+document.getElementById('county').innerHTML='<table>'+head('County')+rowsHtml(counties,c=>[c,vals(r=>r[3]===c)])+'</table>';
+document.getElementById('ftype').innerHTML='<table>'+head('Facility Type')+rowsHtml(ftypes,t=>[t,vals(r=>r[2]===t)])+'</table>';
+document.getElementById('source').innerHTML='<table>'+head('Source')+rowsHtml(Object.keys(SRC),s=>[s,vals(()=>true,s)])+'</table>';
+
+// Inquiry dropdowns
+const fill=(id,items)=>{document.getElementById(id).innerHTML='<option value=""></option>'+items.map(x=>`<option>${x}</option>`).join('')};
+fill('selC',counties);fill('selT',ftypes);fill('selS',Object.keys(SRC));
+function inquire(){
+  const c=selC.value,t=selT.value,s=selS.value;
+  const none=!c&&!t&&!s;
+  const f=r=>(!c||r[3]===c)&&(!t||r[2]===t);
+  inqOut.innerHTML=P.map((p,i)=>`<tr><td>${LBL[p]}</td><td>${none?'':fmt(sum(SRC[s||'Total'][i],f))}</td></tr>`).join('');
+}
+['selC','selT','selS'].forEach(id=>document.getElementById(id).addEventListener('change',inquire));
+inquire();
+</script>
+</body>
+</html>
