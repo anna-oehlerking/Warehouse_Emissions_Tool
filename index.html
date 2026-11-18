@@ -123,17 +123,18 @@ a.pill:hover{background:var(--indigo);border-color:var(--indigo);color:#fff}
 <section id="t1">
   <p class="lede">The baseline is the current estimate of emissions from the 1,000-facility subset of Illinois warehouses.</p>
   <div class="layout"><div>
-    <div class="grid2">
-      <div class="card"><h2>Total emissions</h2><div id="a1"></div></div>
-      <div class="card hl">
-        <h2>Inquiries</h2>
-        <label for="selC">County</label><select id="selC"></select>
-        <label for="selT">Facility type</label><select id="selT"></select>
-        <label for="selS">Source</label><select id="selS"></select>
-        <table style="margin-top:14px"><thead><tr><th>Pollutant</th><th>Tons/yr</th></tr></thead><tbody id="inqOut"></tbody></table>
-        <div class="note">Leave a dropdown blank to include all. A blank source means Total.</div>
+    <div class="card hl">
+      <h2>Inquiries</h2>
+      <div class="inputs">
+        <div><label for="selC">County</label><select id="selC"></select></div>
+        <div><label for="selT">Facility type</label><select id="selT"></select></div>
+        <div><label for="selS">Source</label><select id="selS"></select></div>
       </div>
+      <table id="inqTbl" style="margin-top:14px"></table>
+      <button class="btn" id="inqReset" type="button">Reset</button>
+      <div class="note">Leave a dropdown blank to include all. A blank source includes every source.</div>
     </div>
+    <div class="card"><h2>Total emissions</h2><div id="a1"></div></div>
     <div id="aGrid"></div>
   </div>
   <div class="card mapcard map" id="mapA"></div></div>
@@ -285,13 +286,15 @@ setMap('mapA',BASE);setMap('mapB',WPR);
 sumTable('a1',[['Total (tons/yr)',i=>fmt(TB[i],2)],['Per warehouse',i=>fmt(TB[i]/N,3)]]);
 $('aGrid').innerHTML=gridHtml('a');breakdown('a',BASE);
 const fill=(id,items)=>{$(id).innerHTML='<option value=""></option>'+items.map(x=>`<option>${x}</option>`).join('')};
-fill('selC',counties);fill('selT',ftypes);fill('selS',ALL);
+fill('selC',counties);fill('selT',ftypes);fill('selS',KEYS);
 function inquire(){
   const c=selC.value,t=selT.value,s=selS.value;
   const v=agg(BASE,r=>(!c||r[3]===c)&&(!t||r[2]===t),s||'Total');
-  inqOut.innerHTML=P.map((p,i)=>`<tr><td>${LBL[p]}</td><td>${!c&&!t&&!s?'':fmt(v[i])}</td></tr>`).join('');
+  const none=!c&&!t&&!s;
+  inqTbl.innerHTML='<thead><tr><th>Selected</th>'+P.map(p=>`<th>${LBL[p]}</th>`).join('')+'</tr></thead><tbody><tr><td>Tons/yr</td>'+P.map((p,i)=>`<td>${none?'':fmt(v[i])}</td>`).join('')+'</tr></tbody>';
 }
 ['selC','selT','selS'].forEach(id=>$(id).addEventListener('change',inquire));
+$('inqReset').addEventListener('click',()=>{['selC','selT','selS'].forEach(id=>$(id).value='');inquire()});
 inquire();
 
 // Tab 2: WPRA
