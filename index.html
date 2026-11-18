@@ -93,6 +93,20 @@ a.pill:hover{background:var(--indigo);border-color:var(--indigo);color:#fff}
 .tip div{display:flex;justify-content:space-between;gap:14px;color:var(--indigo)}
 .legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--indigo);margin-top:8px}
 .legend i{flex:1;height:8px;border-radius:99px;background:linear-gradient(90deg,#B0E298,#F79256,#B6244F)}
+.c-indigo{--cbg:#575D90;--cfg:#fff;--cline:rgba(255,255,255,.3);--cin:rgba(255,255,255,.12)}
+.c-green{--cbg:#B0E298;--cfg:#23264A;--cline:rgba(35,38,74,.2);--cin:rgba(255,255,255,.5)}
+.c-peri{--cbg:#AEB8FE;--cfg:#23264A;--cline:rgba(35,38,74,.2);--cin:rgba(255,255,255,.5)}
+.c-orange{--cbg:#F79256;--cfg:#23264A;--cline:rgba(35,38,74,.22);--cin:rgba(255,255,255,.45)}
+.c-crimson{--cbg:#B6244F;--cfg:#fff;--cline:rgba(255,255,255,.3);--cin:rgba(255,255,255,.12)}
+.gc{background:var(--cbg);border-color:var(--cbg);color:var(--cfg)}
+.gc h2,.gc .acr span,.gc .scen span,.gc .refs h3{color:var(--cfg)}
+.gc .acr div{border-bottom-color:var(--cline)}
+.gc .scen div,.gc .refs div{background:var(--cin);border-color:var(--cline)}
+.gc .refs a{color:var(--cfg);text-decoration-color:var(--cfg)}
+.gc .pill{background:var(--cin);border-color:var(--cline);color:var(--cfg)}
+.gc a.pill:hover{background:var(--cfg);border-color:var(--cfg);color:var(--cbg)}
+.gc .btn{background:var(--cfg);color:var(--cbg)}
+.gc .btn:hover{opacity:.88;background:var(--cfg)}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -151,17 +165,17 @@ a.pill:hover{background:var(--indigo);border-color:var(--indigo);color:#fff}
 </section>
 
 <section id="t4" hidden>
-  <div class="card">
+  <div class="card gc c-indigo">
     <h2>About this tool</h2>
     <p>The Warehouse Emissions Estimator is designed to allow users to see the baseline emissions for 1,000 warehouses in Illinois, as well as an estimated WPRA scenario and customizable outputs. This represents ~1/7 of the total statewide warehouse population of 50,000+ sq ft.</p>
     <div class="logo"><img src="logo.png" alt="Clear the Air Coalition logo" onerror="this.parentNode.hidden=true"></div>
     <p class="center">This tool was created to support the Clear the Air Coalition in their efforts to implement the proposed Warehouse Pollution Reduction Act.</p>
   </div>
-  <div class="card"><h2>Scenarios</h2><div class="scen" id="scen"></div></div>
-  <div class="card"><h2>Acronyms</h2><div class="acr" id="acr"></div></div>
-  <div class="card"><h2>Links</h2><div class="pills" id="links"></div></div>
-  <div class="card hl"><h2>Take action</h2><p style="margin:0 0 12px;font-weight:600">Want to see this policy go through? Contact your local legislator today.</p><a class="btn" id="legis" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin:0">Find your legislator</a></div>
-  <div class="card"><h2>References</h2><div class="refs" id="refs"></div></div>
+  <div class="card gc c-green"><h2>Scenarios</h2><div class="scen" id="scen"></div></div>
+  <div class="card gc c-peri"><h2>Acronyms</h2><div class="acr" id="acr"></div></div>
+  <div class="card gc c-orange"><h2>Links</h2><div class="pills" id="links"></div></div>
+  <div class="card gc c-crimson"><h2>Take action</h2><p style="margin:0 0 12px;font-weight:600">Want to see this policy go through? Contact your local legislator today.</p><a class="btn" id="legis" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin:0">Find your legislator</a></div>
+  <div class="card gc c-indigo"><h2>References</h2><div class="refs" id="refs"></div></div>
   <p class="ack">Claude was used to convert an existing Excel tool into a shareable HTML format.</p>
 </section>
 </div>
